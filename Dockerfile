@@ -6,7 +6,8 @@ RUN wget -qO - `wget -qO - "https://api.github.com/repos/wez/atomicparsley/relea
 
 
 FROM alpine:latest
-#MAINTAINER Jonathan Harris <jonathan@marginal.org.uk>
+MAINTAINER Sproglet <losprog@gmail.com>
+LABEL org.opencontainers.image.source https://github.com/sproglet/get_iplayer
 ENV GETIPLAYER_OUTPUT=/output GETIPLAYER_PROFILE=/output/.get_iplayer PUID=1000 PGID=100 PORT=1935 BASEURL=
 EXPOSE $PORT
 VOLUME "$GETIPLAYER_OUTPUT"
