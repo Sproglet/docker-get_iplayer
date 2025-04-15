@@ -1,4 +1,4 @@
-FROM alpine:latest as atomicparsleybuild
+FROM alpine:latest AS atomicparsleybuild
 
 RUN apk --update --no-cache add cmake g++ jq linux-headers make zlib-dev
 
@@ -6,7 +6,7 @@ RUN wget -qO - `wget -qO - "https://api.github.com/repos/wez/atomicparsley/relea
 
 
 FROM alpine:latest
-MAINTAINER Jonathan Harris <jonathan@marginal.org.uk>
+#MAINTAINER Jonathan Harris <jonathan@marginal.org.uk>
 ENV GETIPLAYER_OUTPUT=/output GETIPLAYER_PROFILE=/output/.get_iplayer PUID=1000 PGID=100 PORT=1935 BASEURL=
 EXPOSE $PORT
 VOLUME "$GETIPLAYER_OUTPUT"
