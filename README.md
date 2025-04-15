@@ -1,6 +1,6 @@
 # get_iplayer PVR Docker image
 
-This is a smallish (100MB) Docker image that hosts the [get_iplayer](https://github.com/get-iplayer/get_iplayer/wiki) PVR. It automatically keeps itself up-to-date with the latest version of get_iplayer.
+This is a smallish (~200MB) Docker image that hosts the [get_iplayer](https://github.com/get-iplayer/get_iplayer/wiki) PVR. It automatically keeps itself up-to-date with the latest version of get_iplayer.
 
 The PVR recording feature runs hourly. The get_iplayer version is updated daily. The get_iplayer showlist is updated every 4 hours.
 
