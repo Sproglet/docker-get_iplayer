@@ -6,8 +6,9 @@ RUN wget -qO - `wget -qO - "https://api.github.com/repos/wez/atomicparsley/relea
 
 
 FROM alpine:latest
-MAINTAINER Sproglet <losprog@gmail.com>
-LABEL org.opencontainers.image.source https://github.com/sproglet/get_iplayer
+#MAINTAINER Sproglet <losprog@gmail.com>
+LABEL org.opencontainers.image.authors="losprog@gmail.com"
+LABEL org.opencontainers.image.source=https://github.com/sproglet/get_iplayer
 ENV GETIPLAYER_OUTPUT=/output GETIPLAYER_PROFILE=/output/.get_iplayer PUID=1000 PGID=100 PORT=1935 BASEURL=
 EXPOSE $PORT
 VOLUME "$GETIPLAYER_OUTPUT"
@@ -27,5 +28,6 @@ RUN wget -qO - "https://api.github.com/repos/get-iplayer/get_iplayer/releases/la
 
 COPY files/ /
 
-ENTRYPOINT ["/sbin/tini", "--"]
-CMD /start
+#ENTRYPOINT ["/sbin/tini", "--"]
+#CMD /start
+ENTRYPOINT ["/sbin/tini", "/start"]
