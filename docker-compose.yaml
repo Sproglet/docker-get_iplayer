@@ -1,7 +1,6 @@
-version: "3.7"
 services:
   get_iplayer:
-    image: marginal/get_iplayer:latest
+    image: ghcr.io/sproglet/get_iplayer:latest
     build:
       context: .
       dockerfile: Dockerfile
