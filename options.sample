@@ -4,7 +4,7 @@ tagformattitle <title>
 thumbsize 512
 whitespace 1
 # To send a notification after a TV download see example below using a Webhook to send a Notification in Slack
-# tvcommand ffmpeg -i "<filename>" -c:v copy -c:a eac3 -y "<dir>/<fileprefix>.mkv" && curl -X POST -H 'Content-type: application/json' --data "{\"text\": \"<nameshort> - <senum> - <episodeshort> has been downloaded.\"}"  https://hooks.slack.com/services/YOUR/TOKENIZED/URL
+# commandtv ffmpeg -i "<filename>" -c:v copy -c:a eac3 -y "<dir>/<fileprefix>.mkv" && curl -X POST -H 'Content-type: application/json' --data "{\"text\": \"<nameshort> - <senum> - <episodeshort> has been downloaded.\"}"  https://hooks.slack.com/services/YOUR/TOKENIZED/URL
 type tv,radio && rm -f "<filename>"
 commandtv ffmpeg -i "<filename>" -c:v copy -c:a eac3 -y "<dir>/<fileprefix>.mkv" && rm <filename>
 tvmode fhd,hd,sd
