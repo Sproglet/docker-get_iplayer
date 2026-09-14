@@ -1,2 +1,9 @@
+.git
+.agents
+.codex
+output
+tests
+docs
+**/__pycache__
 .DS_Store
 *.bak

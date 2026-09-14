@@ -1,0 +1,5 @@
+#!/usr/bin/env python3
+import os
+import urllib.request
+with urllib.request.urlopen('http://127.0.0.1:' + os.environ['PORT'] + '/health', timeout=3) as response:
+    assert response.status == 200

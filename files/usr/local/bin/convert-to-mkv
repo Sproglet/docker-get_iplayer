@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+"""Post-recording hook: publish a validated MKV before removing its source MP4."""
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import signal
+import subprocess
+import sys
+import tempfile
+
+
+def interrupted(signum, frame):
+    raise InterruptedError('Conversion cancelled; the original MP4 is retained')
+
+
+def probe(path):
+    result = subprocess.run(['ffprobe', '-v', 'error', '-show_streams', '-show_format',
+                             '-of', 'json', str(path)], capture_output=True, text=True)
+    if result.returncode:
+        raise ValueError(f'Cannot inspect {path.name}: {result.stderr.strip()[-500:]}')
+    data = json.loads(result.stdout)
+    videos = [stream for stream in data['streams'] if stream['codec_type'] == 'video'
+              and not stream.get('disposition', {}).get('attached_pic')]
+    if not videos:
+        raise ValueError('No programme video stream was found')
+    return data, videos[0]
+
+
+def identity(path):
+    stat = path.stat()
+    return stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns
+
+
+def source_for_pid(pid):
+    if not re.fullmatch(r'[a-z0-9]{8,16}', pid):
+        raise ValueError('Invalid programme ID')
+    filename = None
+    with (Path(os.environ['GETIPLAYER_PROFILE']) / 'download_history').open(encoding='utf-8') as stream:
+        for line in stream:
+            fields = line.rstrip('\r\n').split('|')
+            if len(fields) >= 7 and fields[0] == pid:
+                filename = fields[6]
+    if not filename:
+        raise ValueError('No just-recorded filename was found in download history')
+    return Path(filename)
+
+
+def convert(source):
+    source = source.absolute()
+    if source.suffix.lower() != '.mp4' or source.is_symlink() or not source.is_file():
+        raise ValueError('Expected a regular, non-symlink MP4 file')
+    destination = source.with_suffix('.mkv')
+    if os.path.lexists(destination):
+        raise FileExistsError(f'MKV already exists; neither file was changed: {destination}')
+    original = identity(source)
+    source_data, source_video = probe(source)
+    descriptor, temporary_name = tempfile.mkstemp(prefix='.get-iplayer-mkv-', suffix='.partial', dir=source.parent)
+    os.close(descriptor)
+    temporary = Path(temporary_name)
+    try:
+        print(f'INFO: Creating MKV with copied video and E-AC-3 audio: {destination}', flush=True)
+        subprocess.run(['ffmpeg', '-nostdin', '-hide_banner', '-loglevel', 'warning', '-y',
+                        '-i', str(source), '-map', '0:V:0', '-map', '0:a?', '-map', '0:s?',
+                        '-map_metadata', '0', '-c:v', 'copy', '-c:a', 'eac3', '-c:s', 'srt',
+                        '-f', 'matroska', str(temporary)], check=True)
+        data, video = probe(temporary)
+        for key in ('codec_name', 'width', 'height'):
+            if video.get(key) != source_video.get(key):
+                raise ValueError('Converted video does not match the source')
+        source_audio = [s for s in source_data['streams'] if s['codec_type'] == 'audio']
+        audio = [s for s in data['streams'] if s['codec_type'] == 'audio']
+        if len(audio) != len(source_audio) or any(s.get('codec_name') != 'eac3' for s in audio):
+            raise ValueError('Converted audio did not validate as E-AC-3')
+        if identity(source) != original:
+            raise ValueError('The source changed during conversion; it will not be removed')
+        # Use the caller's umask for the published file, not mkstemp's private mode.
+        mask = os.umask(0o002)
+        os.umask(mask)
+        temporary.chmod(0o666 & ~mask)
+        with temporary.open('rb') as stream:
+            os.fsync(stream.fileno())
+        # Exclusive, atomic publication on the same filesystem: never overwrite an MKV.
+        os.link(temporary, destination)
+        with_directory = os.open(source.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(with_directory)
+            if identity(source) != original:
+                raise ValueError('Source changed before removal; both files have been kept')
+            source.unlink()
+            os.fsync(with_directory)
+        finally:
+            os.close(with_directory)
+        print(f'INFO: MKV conversion complete; original MP4 removed: {destination}', flush=True)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('filename', nargs='?', help='Retained MP4 to convert directly')
+    parser.add_argument('--pid', help='Find the newly recorded MP4 in engine history')
+    args = parser.parse_args()
+    if bool(args.pid) == bool(args.filename):
+        parser.error('Specify one filename or --pid')
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(sig, interrupted)
+    try:
+        source = source_for_pid(args.pid) if args.pid else Path(args.filename)
+        convert(source)
+        return 0
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        print(f'ERROR: MKV conversion failed: {exc}. Any remaining MP4 is retained. '
+              'Fix the cause and retry convert-to-mkv on that MP4; download history already records the programme.',
+              file=sys.stderr, flush=True)
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

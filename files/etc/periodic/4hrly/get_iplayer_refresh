@@ -1,5 +1,0 @@
-#!/bin/sh
-#
-#
-/usr/local/bin/get_iplayer --refresh
-

@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/get-iplayer/get_iplayer",
+  "tag": "v3.36",
+  "commit": "df1bc7f3b86f2e994f9a3e1140a50cb7f5d9650f",
+  "archive_url": "https://api.github.com/repos/get-iplayer/get_iplayer/tarball/df1bc7f3b86f2e994f9a3e1140a50cb7f5d9650f",
+  "archive_sha256": "7140f52ca107ad5a9b818f92f6ee0ab8c15adc405f665195fa4d5ba96064d21d",
+  "license": "GPL-3.0-or-later",
+  "local_changes": false
+}

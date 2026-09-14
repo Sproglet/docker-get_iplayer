@@ -1,33 +1,32 @@
-FROM alpine:latest AS atomicparsleybuild
+# Both stages use the same immutable multi-platform Alpine base.
+FROM alpine:3.23.5@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS atomicparsleybuild
+COPY docker/build.packages /tmp/packages
+RUN xargs apk add --no-cache < /tmp/packages
+WORKDIR /src
+COPY vendor/atomicparsley/source.tar.gz /tmp/source.tar.gz
+RUN echo "b93a937fe21b2e67fb65df7c2ac2e47effba05b30c9af1490f015979976ad5cd  /tmp/source.tar.gz" | sha256sum -c - \
+    && tar -xzf /tmp/source.tar.gz --strip-components=1 \
+    && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build build --target install/strip
 
-RUN apk --update --no-cache add cmake g++ jq linux-headers make zlib-dev
-
-RUN wget -qO - `wget -qO - "https://api.github.com/repos/wez/atomicparsley/releases/latest" | jq -r .tarball_url` | tar -zx --strip-components=1 && cmake . && cmake --build . --config Release --target install/strip
-
-
-FROM alpine:latest
-#MAINTAINER Sproglet <losprog@gmail.com>
-LABEL org.opencontainers.image.authors="losprog@gmail.com"
-LABEL org.opencontainers.image.source=https://github.com/sproglet/get_iplayer
-ENV GETIPLAYER_OUTPUT=/output GETIPLAYER_PROFILE=/output/.get_iplayer PUID=1000 PGID=100 PORT=1935 BASEURL=
-EXPOSE $PORT
-VOLUME "$GETIPLAYER_OUTPUT"
-
-RUN apk --update --no-cache add ffmpeg perl-cgi perl-mojolicious perl-lwp-protocol-https perl-xml-libxml jq logrotate su-exec tini curl
-
+FROM alpine:3.23.5@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40
+LABEL org.opencontainers.image.authors="losprog@gmail.com" \
+      org.opencontainers.image.source="https://github.com/Sproglet/docker-get_iplayer"
+ENV GETIPLAYER_OUTPUT=/output GETIPLAYER_PROFILE=/output/.get_iplayer PUID=1000 PGID=100 PORT=1935 BASEURL= PYTHONUNBUFFERED=1
+COPY docker/runtime.packages /tmp/packages
+RUN xargs apk add --no-cache < /tmp/packages && rm /tmp/packages
 COPY --from=atomicparsleybuild /usr/local/bin/AtomicParsley /usr/local/bin/AtomicParsley
-
-RUN wget -qO - "https://api.github.com/repos/get-iplayer/get_iplayer/releases/latest" > /tmp/latest.json && \
-    echo get_iplayer release `jq -r .name /tmp/latest.json` && \
-    wget -qO - "`jq -r .tarball_url /tmp/latest.json`" | tar -zxf - && \
-    cd get-iplayer* && \
-    install -m 755 -t /usr/local/bin ./get_iplayer ./get_iplayer.cgi && \
-    cd / && \
-    rm -rf get-iplayer* && \
-    rm /tmp/latest.json
-
+COPY vendor/get_iplayer/ /opt/get_iplayer/
+COPY vendor/get_iplayer.UPSTREAM.json /opt/get_iplayer.UPSTREAM.json
+COPY vendor/atomicparsley/ /usr/local/share/doc/atomicparsley/
+RUN chmod -R a-w /opt/get_iplayer \
+    && ln -s /opt/get_iplayer/get_iplayer /usr/local/bin/get_iplayer \
+    && ln -s /opt/get_iplayer/get_iplayer.cgi /usr/local/bin/get_iplayer.cgi
 COPY files/ /
-
-#ENTRYPOINT ["/sbin/tini", "--"]
-#CMD /start
-ENTRYPOINT ["/sbin/tini", "/start"]
+# One reviewed source of recording defaults; user profiles are never rewritten.
+COPY options.sample /etc/get_iplayer/options
+RUN chmod 755 /start /usr/local/bin/run-scheduled /usr/local/bin/healthcheck /usr/local/lib/get_iplayer/app.py
+EXPOSE 1935
+VOLUME ["/output"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD ["/usr/local/bin/healthcheck"]
+ENTRYPOINT ["/sbin/tini", "--", "/start"]

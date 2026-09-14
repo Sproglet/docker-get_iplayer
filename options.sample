@@ -1,12 +1,19 @@
+# Image defaults, copied into /etc/get_iplayer/options during the build.
+# Existing profile/preset/PVR options remain higher-priority engine settings.
+expiry 3000
 fileprefix <nameshort><.senum><.episodeshort><.quality.>iPlayer.Web-DL-Get_iPlayer
 refreshexcludegroups local,regional
-tagformattitle <title>
+# Internal option name avoids alias precedence issues across preference files.
+tag_formattitle <title>
 thumbsize 512
 whitespace 1
-# To send a notification after a TV download see example below using a Webhook to send a Notification in Slack
-# commandtv ffmpeg -i "<filename>" -c:v copy -c:a eac3 -y "<dir>/<fileprefix>.mkv" && curl -X POST -H 'Content-type: application/json' --data "{\"text\": \"<nameshort> - <senum> - <episodeshort> has been downloaded.\"}"  https://hooks.slack.com/services/YOUR/TOKENIZED/URL
-type tv,radio && rm -f "<filename>"
-commandtv ffmpeg -i "<filename>" -c:v copy -c:a eac3 -y "<dir>/<fileprefix>.mkv" && rm <filename>
-tvmode fhd,hd,sd
+type tv,radio
+# Same preferences as tvmode fhd,hd,sd and radiomode high,std.
+# A combined default also lets existing per-type AND combined quality override it.
+modes fhd,hd,sd,high,std
 thumb 1
-radiomode high,std
+# Copy video into MKV, transcode audio to E-AC-3, remove MP4 only after success.
+# Resolve the just-recorded filename from history, keeping paths out of shell text.
+commandtv /usr/local/bin/convert-to-mkv --pid "<pid>"
+# Notifications can be configured in a higher-priority profile commandtv hook.
+# Chain them AFTER a successful convert-to-mkv; never embed unescaped titles/URLs.

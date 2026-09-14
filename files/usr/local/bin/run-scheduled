@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+umask 002
+case "${1:-}" in
+    pvr|refresh) exec python3 /usr/local/lib/get_iplayer/app.py --enqueue "$1" ;;
+    *) echo 'Usage: run-scheduled pvr|refresh (adds work to the durable queue)' >&2; exit 2 ;;
+esac
