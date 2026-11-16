@@ -1,6 +1,6 @@
 services:
   get_iplayer:
-    image: ghcr.io/sproglet/get_iplayer:latest
+    image: local/get_iplayer:patched
     build:
       context: .
       dockerfile: Dockerfile

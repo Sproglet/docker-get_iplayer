@@ -1,8 +1,26 @@
 # get_iplayer PVR Docker image
 
-This is a smallish (~200MB) Docker image that hosts the [get_iplayer](https://github.com/get-iplayer/get_iplayer/wiki) PVR. It automatically keeps itself up-to-date with the latest version of get_iplayer.
+This Docker image hosts the [get_iplayer](https://github.com/get-iplayer/get_iplayer/wiki) PVR. It installs the latest release and automatically applies `get_iplayer.diff` **only to version 3.36**. Releases 3.37 and later install without this workaround, assuming the fix is included upstream.
 
-The PVR recording feature runs hourly. The get_iplayer version is updated daily. The get_iplayer showlist is updated every 4 hours.
+The PVR recording feature runs hourly. get_iplayer updates at startup and daily; its showlist refreshes every 4 hours. Updates are patched and syntax-checked before installation.
+
+## Build the patched image
+
+Set your download directory in `docker-compose.yaml`, then run:
+
+```sh
+docker compose up -d --build get_iplayer
+```
+
+The local image tag keeps the custom build separate from the published unpatched image. If you use another Compose file, set its image to `local/get_iplayer:patched` and its build context to this directory.
+
+The patch supports DASH manifests using `SegmentTemplate@duration` or uniform `SegmentTimeline` durations (with a possibly shorter final segment). Missing durations/timescales and unsupported variable timelines are skipped with a warning.
+
+To run the offline manifest regression tests after building:
+
+```sh
+docker run --rm --entrypoint perl -v "$PWD/tests:/tests:ro" local/get_iplayer:patched /tests/dash-manifests.t /usr/local/bin/get_iplayer
+```
 
 ## Image configuration
 
@@ -19,7 +37,7 @@ If you're running behind a reverse proxy set the environment variable `BASEURL` 
 This makes the PVR available on port 1935, and makes downloaded files owned by the current user:
 
 ```sh
-docker run -d -e PUID=`id -u` -e PGID=`id -g` -p 1935:1935 -v /destination/on/host:/output ghcr.io/sproglet/get_iplayer:latest
+docker run -d -e PUID=`id -u` -e PGID=`id -g` -p 1935:1935 -v /destination/on/host:/output local/get_iplayer:patched
 ```
 Replace `/destination/on/host` with the path of a folder on the host machine where you would like the downloaded files to be placed.
 

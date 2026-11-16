@@ -1,0 +1,15 @@
+#!/bin/sh
+# Apply this workaround only to 3.36; later releases use upstream code.
+set -eu
+source_dir=${1:?Usage: patch-get-iplayer SOURCE_DIRECTORY}
+patch_file=/usr/local/share/get_iplayer/get_iplayer.diff
+version=$(sed -n 's/^my $version = \([0-9.]*\);$/\1/p' "$source_dir/get_iplayer")
+[ -n "$version" ] || { echo "Cannot determine get_iplayer source version" >&2; exit 1; }
+[ "$version" = "3.36" ] || exit 0
+# Also support re-running the helper against an already patched installation.
+if patch --batch --force --dry-run --reverse --fuzz=0 -p1 -d "$source_dir" < "$patch_file" >/dev/null 2>&1; then
+    echo "get_iplayer 3.36 DASH fix already applied"
+else
+    patch --batch --forward --fuzz=0 -p1 -d "$source_dir" < "$patch_file"
+fi
+perl -c "$source_dir/get_iplayer"

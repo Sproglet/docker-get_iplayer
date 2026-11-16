@@ -13,18 +13,22 @@ ENV GETIPLAYER_OUTPUT=/output GETIPLAYER_PROFILE=/output/.get_iplayer PUID=1000 
 EXPOSE $PORT
 VOLUME "$GETIPLAYER_OUTPUT"
 
-RUN apk --update --no-cache add ffmpeg perl-cgi perl-mojolicious perl-lwp-protocol-https perl-xml-libxml jq logrotate su-exec tini curl
+RUN apk --update --no-cache add ffmpeg perl-cgi perl-mojolicious perl-lwp-protocol-https perl-xml-libxml jq logrotate su-exec tini curl patch
 
 COPY --from=atomicparsleybuild /usr/local/bin/AtomicParsley /usr/local/bin/AtomicParsley
 
-RUN wget -qO - "https://api.github.com/repos/get-iplayer/get_iplayer/releases/latest" > /tmp/latest.json && \
-    echo get_iplayer release `jq -r .name /tmp/latest.json` && \
-    wget -qO - "`jq -r .tarball_url /tmp/latest.json`" | tar -zxf - && \
-    cd get-iplayer* && \
-    install -m 755 -t /usr/local/bin ./get_iplayer ./get_iplayer.cgi && \
-    cd / && \
-    rm -rf get-iplayer* && \
-    rm /tmp/latest.json
+COPY get_iplayer.diff /usr/local/share/get_iplayer/get_iplayer.diff
+COPY files/usr/local/bin/patch-get-iplayer /usr/local/bin/patch-get-iplayer
+
+RUN set -eu; \
+    mkdir /tmp/get_iplayer-src; \
+    wget -qO /tmp/latest.json "https://api.github.com/repos/get-iplayer/get_iplayer/releases/latest"; \
+    wget -qO /tmp/get_iplayer.tar.gz "$(jq -er .tarball_url /tmp/latest.json)"; \
+    tar -xzf /tmp/get_iplayer.tar.gz --strip-components=1 -C /tmp/get_iplayer-src; \
+    patch-get-iplayer /tmp/get_iplayer-src; \
+    perl -c /tmp/get_iplayer-src/get_iplayer; \
+    install -m 755 -t /usr/local/bin /tmp/get_iplayer-src/get_iplayer /tmp/get_iplayer-src/get_iplayer.cgi; \
+    rm -rf /tmp/get_iplayer-src /tmp/get_iplayer.tar.gz /tmp/latest.json
 
 COPY files/ /
 
